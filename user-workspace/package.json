@@ -1,0 +1,51 @@
+{
+  "name": "indicab-dev-tools",
+  "displayName": "IndiCab Development Tools",
+  "description": "VS Code extension for IndiCab Java full-stack development",
+  "version": "0.0.1",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/sudha-sharma-sudo/indicab-dev-tools.git"
+  },
+  "engines": {
+    "vscode": "^1.75.0"
+  },
+  "categories": [
+    "Programming Languages",
+    "Extension Packs",
+    "Other"
+  ],
+  "activationEvents": [
+    "onCommand:indicab.start",
+    "onView:indicabProjectExplorer"
+  ],
+  "main": "./dist/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "indicab.start",
+        "title": "Start IndiCab Tools"
+      }
+    ],
+    "views": {
+      "explorer": [
+        {
+          "id": "indicabProjectExplorer",
+          "name": "IndiCab Project"
+        }
+      ]
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "lint": "eslint src --ext ts"
+  },
+  "devDependencies": {
+    "@types/vscode": "^1.75.0",
+    "@types/node": "16.x",
+    "eslint": "^8.34.0",
+    "typescript": "^4.9.5"
+  }
+}
