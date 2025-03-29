@@ -121,12 +121,18 @@ export class ProjectExplorer implements vscode.TreeDataProvider<vscode.TreeItem>
         );
         item.contextValue = 'package';
         item.iconPath = new vscode.ThemeIcon('package');
-        item.tooltip = pkg.path;
+        item.tooltip = `${pkg.name}\n${pkg.path}\n${pkg.classes.length} classes`;
         item.command = {
             command: 'vscode.openFolder',
             title: 'Open Package',
             arguments: [vscode.Uri.file(pkg.path)]
         };
+        
+        // Add badge showing number of classes
+        if (pkg.classes.length > 0) {
+            item.description = `${pkg.classes.length} classes`;
+        }
+        
         return item;
     }
 
@@ -137,12 +143,16 @@ export class ProjectExplorer implements vscode.TreeDataProvider<vscode.TreeItem>
         );
         item.contextValue = 'build-file';
         item.iconPath = new vscode.ThemeIcon(build.type === 'MAVEN' ? 'file-code' : 'gear');
-        item.tooltip = build.path;
+        item.tooltip = `${build.type} build file\n${build.path}`;
         item.command = {
             command: 'vscode.open',
             title: 'Open Build File',
             arguments: [vscode.Uri.file(build.path)]
         };
+        
+        // Add build type badge
+        item.description = build.type;
+        
         return item;
     }
 }

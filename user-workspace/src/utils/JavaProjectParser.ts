@@ -22,6 +22,8 @@ export interface JavaClass {
     methods: JavaMethod[];
     fields: JavaField[];
     imports?: string[];
+    annotations?: string[];
+    dependencies?: string[];
 }
 
 export interface JavaMethod {

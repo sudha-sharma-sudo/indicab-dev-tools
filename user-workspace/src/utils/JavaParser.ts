@@ -6,9 +6,15 @@ import { JavaClass, JavaMethod, JavaField, JavaImport } from './JavaProjectParse
 
 export class JavaParser {
     private static readonly CLASS_REGEX = /^\s*(?:public|private|protected)?\s*(?:class|interface|enum)\s+(\w+)[\s\{]/gm;
-    private static readonly METHOD_REGEX = /(?:public|private|protected)\s+([\w<>]+)\s+(\w+)\s*\(([^)]*)\)/g;
-    private static readonly FIELD_REGEX = /(?:public|private|protected)\s+([\w<>]+)\s+(\w+)\s*[;=]/g;
-    private static readonly IMPORT_REGEX = /^import\s+([\w\.]+)\s*;/gm;
+    private static readonly METHOD_REGEX = /(?:public|private|protected)\s+([\w<>,\s]+)\s+(\w+)\s*\(([^)]*)\)/g;
+    private static readonly FIELD_REGEX = /(?:public|private|protected)\s+([\w<>,\s]+)\s+(\w+)\s*[;=]/g;
+    private static readonly IMPORT_REGEX = /^import\s+(?:static\s+)?([\w\.]+)\s*;/gm;
+    private static readonly ANNOTATION_REGEX = /@(\w+)(?:\(([^)]*)\))?/g;
+    private static fileCache = new Map<string, {mtime: number, content: JavaClass}>();
+
+    private static clearCache() {
+        this.fileCache.clear();
+    }
 
     static parseClassStructure(content: string, filePath: string): JavaClass {
         // Reset regex state
@@ -22,14 +28,33 @@ export class JavaParser {
         const isInterface = content.includes('interface ');
         const isEnum = content.includes('enum ');
 
+        const methods = this.extractMethods(content);
+        const fields = this.extractFields(content);
+        const imports = this.extractImports(content);
+
         return {
             name: classNameMatch[1],
             type: isInterface ? 'INTERFACE' : isEnum ? 'ENUM' : 'CLASS',
             path: filePath,
-            methods: this.extractMethods(content),
-            fields: this.extractFields(content),
-            imports: this.extractImports(content)
+            methods: methods,
+            fields: fields,
+            imports: imports,
+            annotations: this.extractClassAnnotations(content),
+            dependencies: this.parseDependencies(content)
         };
+    }
+
+    private static extractClassAnnotations(content: string): string[] {
+        const annotations: string[] = [];
+        let match;
+        
+        while ((match = this.ANNOTATION_REGEX.exec(content)) !== null) {
+            if (match[1] && !annotations.includes(match[1])) {
+                annotations.push(match[1]);
+            }
+        }
+
+        return annotations;
     }
 
     static parseDependencies(content: string): string[] {
@@ -99,8 +124,22 @@ export class JavaParser {
 
     static async parseFile(filePath: string): Promise<JavaClass> {
         try {
+            const stats = await fs.promises.stat(filePath);
+            const cached = this.fileCache.get(filePath);
+            
+            if (cached && cached.mtime === stats.mtimeMs) {
+                return cached.content;
+            }
+
             const content = await fs.promises.readFile(filePath, 'utf-8');
-            return this.parseClassStructure(content, filePath);
+            const parsed = this.parseClassStructure(content, filePath);
+            
+            this.fileCache.set(filePath, {
+                mtime: stats.mtimeMs,
+                content: parsed
+            });
+
+            return parsed;
         } catch (err) {
             throw new Error(`Failed to parse Java file ${filePath}: ${err instanceof Error ? err.message : String(err)}`);
         }

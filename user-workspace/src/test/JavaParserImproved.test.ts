@@ -17,6 +17,14 @@ describe('JavaParser', () => {
             // Verify methods
             expect(result.methods.length).toBeGreaterThan(0);
             expect(result.fields.length).toBeGreaterThan(0);
+
+            // Verify new properties
+            if (result.annotations) {
+                expect(result.annotations).toBeInstanceOf(Array);
+            }
+            if (result.dependencies) {
+                expect(result.dependencies).toBeInstanceOf(Array);
+            }
         });
 
         it('should parse a Java interface file', async () => {
@@ -32,11 +40,27 @@ describe('JavaParser', () => {
                     returnType: 'String'
                 })
             ]));
+
+            // Verify new properties
+            if (result.annotations) {
+                expect(result.annotations).toBeInstanceOf(Array);
+            }
+            if (result.dependencies) {
+                expect(result.dependencies).toBeInstanceOf(Array);
+            }
         });
 
         it('should parse a Java enum file', async () => {
             const result = await JavaParser.parseFile(testEnumFile);
             expect(result.type).toBe('ENUM');
+
+            // Verify new properties
+            if (result.annotations) {
+                expect(result.annotations).toBeInstanceOf(Array);
+            }
+            if (result.dependencies) {
+                expect(result.dependencies).toBeInstanceOf(Array);
+            }
         });
 
         it('should throw error for invalid file', async () => {
