@@ -2,6 +2,7 @@ import * as vscode from 'vscode';
 import * as path from 'path';
 import { JavaParser } from '../utils/JavaParser';
 import { JavaProjectParser, JavaProjectStructure, JavaPackage, JavaClass, BuildFile } from '../utils/JavaProjectParser';
+import { Colors } from '../utils/DesignSystem';
 
 export class ProjectExplorer implements vscode.TreeDataProvider<vscode.TreeItem> {
     private _onDidChangeTreeData: vscode.EventEmitter<vscode.TreeItem | undefined | null> = new vscode.EventEmitter();
@@ -26,16 +27,8 @@ export class ProjectExplorer implements vscode.TreeDataProvider<vscode.TreeItem>
 
         try {
             const rootPath = workspaceFolders[0].uri.fsPath;
-            const classes = await JavaParser.parseProjectFiles(rootPath);
-            
-            this.projectStructure = {
-                rootPath,
-                sourceRoots: [...new Set(classes.map((c: JavaClass) => path.dirname(c.path)))],
-                packages: this.groupClassesIntoPackages(classes),
-                buildFiles: JavaProjectParser.findBuildFiles(rootPath)
-            };
-
-            vscode.window.showInformationMessage(`Parsed ${classes.length} Java files`);
+            this.projectStructure = await JavaProjectParser.parseProject(rootPath);
+            vscode.window.showInformationMessage(`Parsed ${this.projectStructure.packages.flatMap(p => p.classes).length} Java files`);
         } catch (err) {
             console.error('Error parsing project:', err);
             vscode.window.showErrorMessage(`Failed to parse project: ${err instanceof Error ? err.message : String(err)}`);
@@ -45,32 +38,6 @@ export class ProjectExplorer implements vscode.TreeDataProvider<vscode.TreeItem>
         }
     }
 
-    private groupClassesIntoPackages(classes: JavaClass[]): JavaPackage[] {
-        const packageMap = new Map<string, JavaPackage>();
-        
-        for (const cls of classes) {
-            const packagePath = path.dirname(cls.path);
-            const packageName = this.pathToPackageName(packagePath);
-
-            if (!packageMap.has(packageName)) {
-                packageMap.set(packageName, {
-                    name: packageName,
-                    path: packagePath,
-                    classes: []
-                });
-            }
-            packageMap.get(packageName)!.classes.push(cls);
-        }
-
-        return Array.from(packageMap.values());
-    }
-
-    private pathToPackageName(packagePath: string): string {
-        // Convert file path to Java package name
-        return packagePath.split(path.sep)
-            .filter(part => part !== 'src' && part !== 'main' && part !== 'java')
-            .join('.');
-    }
 
     getTreeItem(element: vscode.TreeItem): vscode.TreeItem {
         return element;
@@ -89,16 +56,23 @@ export class ProjectExplorer implements vscode.TreeDataProvider<vscode.TreeItem>
             // Root level items
             return [
                 this.createCategoryItem('Packages', 'package', this.projectStructure.packages),
-                this.createCategoryItem('Build Files', 'build', this.projectStructure.buildFiles)
+                this.createCategoryItem('Build Files', 'build', this.projectStructure.buildFiles),
+                this.createCategoryItem('Resources', 'resource', this.projectStructure.resources)
             ];
         }
 
         const context = element.contextValue;
         if (context === 'package') {
-            return this.projectStructure.packages.map(pkg => this.createPackageItem(pkg));
+            const pkg = this.projectStructure.packages.find(p => p.name === element.label);
+            if (pkg) {
+                return pkg.classes.map(cls => this.createClassItem(cls));
+            }
         }
         else if (context === 'build') {
             return this.projectStructure.buildFiles.map(build => this.createBuildFileItem(build));
+        }
+        else if (context === 'resource') {
+            return this.projectStructure.resources.map(res => this.createResourceItem(res));
         }
 
         return [];
@@ -136,6 +110,43 @@ export class ProjectExplorer implements vscode.TreeDataProvider<vscode.TreeItem>
         return item;
     }
 
+    private createClassItem(cls: JavaClass): vscode.TreeItem {
+        const item = new vscode.TreeItem(
+            cls.name,
+            vscode.TreeItemCollapsibleState.None
+        );
+        
+        // Set icon and color based on file type
+        if (cls.isTest) {
+            item.iconPath = {
+                light: this.context.asAbsolutePath('assets/icons/test.svg'),
+                dark: this.context.asAbsolutePath('assets/icons/test-dark.svg')
+            };
+            (item as any).color = new vscode.ThemeColor(Colors.test);
+        } else if (cls.isInterface) {
+            item.iconPath = {
+                light: this.context.asAbsolutePath('assets/icons/interface.svg'),
+                dark: this.context.asAbsolutePath('assets/icons/interface-dark.svg')
+            };
+            (item as any).color = new vscode.ThemeColor(Colors.interface);
+        } else {
+            item.iconPath = {
+                light: this.context.asAbsolutePath('assets/icons/class.svg'),
+                dark: this.context.asAbsolutePath('assets/icons/class-dark.svg')
+            };
+            (item as any).color = new vscode.ThemeColor(Colors.class);
+        }
+
+        item.tooltip = `${cls.name}\n${cls.path}`;
+        item.command = {
+            command: 'vscode.open',
+            title: 'Open File',
+            arguments: [vscode.Uri.file(cls.path)]
+        };
+        
+        return item;
+    }
+
     private createBuildFileItem(build: BuildFile): vscode.TreeItem {
         const item = new vscode.TreeItem(
             path.basename(build.path),
@@ -152,6 +163,27 @@ export class ProjectExplorer implements vscode.TreeDataProvider<vscode.TreeItem>
         
         // Add build type badge
         item.description = build.type;
+        
+        return item;
+    }
+
+    private createResourceItem(resource: string): vscode.TreeItem {
+        const item = new vscode.TreeItem(
+            path.basename(resource),
+            vscode.TreeItemCollapsibleState.None
+        );
+        item.contextValue = 'resource-file';
+        item.iconPath = {
+            light: this.context.asAbsolutePath('assets/icons/resource.svg'),
+            dark: this.context.asAbsolutePath('assets/icons/resource-dark.svg')
+        };
+        (item as any).color = new vscode.ThemeColor(Colors.resource);
+        item.tooltip = `Resource file\n${resource}`;
+        item.command = {
+            command: 'vscode.open',
+            title: 'Open Resource',
+            arguments: [vscode.Uri.file(resource)]
+        };
         
         return item;
     }

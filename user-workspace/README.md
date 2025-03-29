@@ -1,52 +1,54 @@
 # IndiCab Development Tools
 
-VS Code extension for Java full-stack development with IndiCab.
+![Extension Icon](icon.png)
+
+VS Code extension for IndiCab Java full-stack development with features for:
+- Java project analysis
+- Code navigation
+- Project structure visualization
+- Build file management
+
+## Installation
+1. Install from [VS Code Marketplace](https://marketplace.visualstudio.com/items?itemName=indicab-dev-tools)
+2. Or load from VSIX:
+```bash
+code --install-extension indicab-dev-tools-0.0.1.vsix
+```
 
 ## Features
+- **Project Explorer**: Visualize Java project structure
+- **Smart Navigation**: Jump between related files
+- **Build Tools**: Gradle/Maven file support
+- **Code Analysis**: AST-based insights
 
-- Project Explorer with Java package structure visualization
-- Automatic detection of:
-  - Java source roots
-  - Maven/Gradle build files
-  - Package hierarchies
-- Quick navigation to:
-  - Java classes
-  - Build files
-  - Package directories
-- Real-time updates when files change
+## Configuration
+```json
+"indicab.logLevel": "info",
+"indicab.fileWatchPatterns": ["**/*.java", "**/*.xml"],
+"indicab.enableCache": true,
+"indicab.cacheTTL": 300
+```
 
-## Usage
+## Development
+See [DEPLOYMENT.md](DEPLOYMENT.md) for publishing instructions.
 
-1. Open a Java project in VS Code
-2. The Project Explorer will automatically appear in the Explorer view
-3. Expand packages to view their classes
-4. Click on any item to open it in the editor
+## Design System
 
-## Commands
+### Documentation
+- [Style Guide](docs/style-guide.md) - Colors, typography, spacing and visual styles
+- [Interaction Patterns](docs/interaction-patterns.md) - User interface behaviors
+- [Accessibility](docs/accessibility.md) - WCAG 2.1 AA compliance guidelines
 
-- `IndiCab: Start` - Activate the extension
-- `IndiCab: Refresh` - Refresh the project structure
-- `IndiCab: Open File` - Open the selected file in editor
+### Assets
+- [Project Navigator Wireframe](assets/design/wireframes/project_navigator.md)
+- [Architecture Dashboard Wireframe](assets/design/wireframes/architecture_dashboard.md)
+- [Design Tokens](src/utils/DesignSystem.ts) - Centralized design constants
 
-## Requirements
+### Implementation
+The extension follows VS Code's design system while adding IndiCab-specific components:
+- Color-coded file types
+- Interactive architecture visualization
+- Context-aware navigation
 
-- VS Code 1.75.0 or higher
-- Java project with either:
-  - Maven (pom.xml)
-  - Gradle (build.gradle)
-  - Standard Java directory structure
-
-## Extension Settings
-
-No additional configuration required - works out of the box!
-
-## Known Issues
-
-- Large projects may take a few seconds to parse initially
-- Only supports standard Java project structures
-
-## Release Notes
-
-### 0.0.1
-
-Initial release with basic project exploration features
+## License
+MIT © 2023 IndiCab Development Team

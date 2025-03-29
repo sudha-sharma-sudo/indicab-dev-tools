@@ -7,6 +7,7 @@ export interface JavaProjectStructure {
     sourceRoots: string[];
     packages: JavaPackage[];
     buildFiles: BuildFile[];
+    resources: string[];
 }
 
 export interface JavaPackage {
@@ -24,6 +25,8 @@ export interface JavaClass {
     imports?: string[];
     annotations?: string[];
     dependencies?: string[];
+    isTest: boolean;
+    isInterface: boolean;
 }
 
 export interface JavaMethod {
@@ -58,7 +61,8 @@ export class JavaProjectParser {
             rootPath: projectPath,
             sourceRoots: [],
             packages: [],
-            buildFiles: []
+            buildFiles: [],
+            resources: []
         };
 
         // Find build files
@@ -71,6 +75,10 @@ export class JavaProjectParser {
         for (const sourceRoot of structure.sourceRoots) {
             const packages = await this.parsePackages(sourceRoot);
             structure.packages.push(...packages);
+            
+            // Find resource files in source root
+            const resourceFiles = await this.findResourceFiles(sourceRoot);
+            structure.resources.push(...resourceFiles);
         }
 
         return structure;
@@ -118,12 +126,12 @@ export class JavaProjectParser {
                     .map(f => path.join(filePath, f));
 
                 if (javaFiles.length > 0) {
-                    const classes = await Promise.all(javaFiles.map(f => this.parseJavaFile(f)));
-                    packages.push({
-                        name: packageName,
-                        path: filePath,
-                        classes: classes.filter(c => c !== null) as JavaClass[]
-                    });
+            const classes = await Promise.all(javaFiles.map(f => this.parseJavaFile(f)));
+            packages.push({
+                name: packageName,
+                path: filePath,
+                classes: classes.filter(c => c !== null) as JavaClass[]
+            });
                 }
             }
         });
@@ -139,13 +147,18 @@ export class JavaProjectParser {
             // Simple parsing (would be enhanced with proper Java parser in future)
             const isInterface = content.includes('interface ');
             const isEnum = content.includes('enum ');
+            const isTest = filePath.includes('test') || 
+                         content.includes('@Test') || 
+                         className.endsWith('Test');
             
             return {
                 name: className,
                 type: isInterface ? 'INTERFACE' : isEnum ? 'ENUM' : 'CLASS',
                 path: filePath,
                 methods: this.extractMethods(content),
-                fields: this.extractFields(content)
+                fields: this.extractFields(content),
+                isTest,
+                isInterface
             };
         } catch (err) {
             console.error(`Error parsing Java file ${filePath}:`, err);
@@ -194,6 +207,16 @@ export class JavaProjectParser {
         }
 
         return fields;
+    }
+
+    private static async findResourceFiles(dir: string): Promise<string[]> {
+        const resources: string[] = [];
+        await this.walkDirectory(dir, async (filePath, stats) => {
+            if (!stats.isDirectory() && !filePath.endsWith('.java')) {
+                resources.push(filePath);
+            }
+        });
+        return resources;
     }
 
     private static async walkDirectory(dir: string, callback: (filePath: string, stats: fs.Stats) => Promise<void>): Promise<void> {
