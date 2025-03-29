@@ -4,6 +4,8 @@ import { Logger } from './utils/Logger';
 import { JavaParser } from './utils/JavaParser';
 import { JavaProjectParser } from './utils/JavaProjectParser';
 import { ArchitectureDashboard } from './views/ArchitectureDashboard';
+import { CodeAnalyzer } from './utils/CodeAnalyzer';
+import { CodeActionProvider } from './providers/CodeActionProvider';
 
 export function activate(context: vscode.ExtensionContext) {
     // Initialize logger
@@ -18,8 +20,10 @@ export function activate(context: vscode.ExtensionContext) {
             treeDataProvider: projectExplorer
         });
 
-        // Register commands
+        // Initialize code analysis and register providers
+        const codeAnalyzer = new CodeAnalyzer();
         context.subscriptions.push(
+            CodeActionProvider.register(context, codeAnalyzer),
             vscode.commands.registerCommand('indicab.start', () => {
                 Logger.info('Extension activated');
                 vscode.window.showInformationMessage('IndiCab Development Tools activated!');

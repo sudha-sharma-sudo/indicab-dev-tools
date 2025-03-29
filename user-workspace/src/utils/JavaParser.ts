@@ -104,7 +104,9 @@ export class JavaParser {
             methods: ast.members?.filter(m => m.kind === 'method').map(m => ({
                 name: m.name!,
                 returnType: m.returnType!,
-                parameters: m.parameters || []
+                parameters: m.parameters || [],
+                annotations: m.annotations?.map(a => a.name),
+                isOverride: m.annotations?.some(a => a.name === 'Override')
             })) || [],
             fields: ast.members?.filter(m => m.kind === 'field').map(m => ({
                 name: m.name!,
@@ -221,10 +223,14 @@ export interface JavaClass {
     name: string;
     type: 'CLASS' | 'INTERFACE' | 'ENUM';
     path: string;
+    issues?: string[];
+    hasIssues?: boolean;
     methods: {
         name: string;
         returnType: string;
         parameters: { type: string; name: string }[];
+        annotations?: string[];
+        isOverride?: boolean;
     }[];
     fields: {
         name: string;

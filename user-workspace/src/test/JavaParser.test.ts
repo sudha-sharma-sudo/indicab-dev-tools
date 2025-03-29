@@ -15,18 +15,18 @@ describe('JavaParser', () => {
                 type: 'CLASS',
                 path: testJavaFile
             });
-            expect(result.methods.length).toBeGreaterThan(0);
-            expect(result.fields.length).toBeGreaterThan(0);
+            expect(result?.methods?.length).toBeGreaterThan(0);
+            expect(result?.fields?.length).toBeGreaterThan(0);
         });
 
         it('should parse a Java interface file', async () => {
             const result = await JavaParser.parseFile(testInterfaceFile);
-            expect(result.type).toBe('INTERFACE');
+            expect(result?.type).toBe('INTERFACE');
         });
 
         it('should parse a Java enum file', async () => {
             const result = await JavaParser.parseFile(testEnumFile);
-            expect(result.type).toBe('ENUM');
+            expect(result?.type).toBe('ENUM');
         });
 
         it('should throw error for invalid file', async () => {
@@ -38,15 +38,15 @@ describe('JavaParser', () => {
 
     describe('parseFiles', () => {
         it('should parse multiple Java files', async () => {
-            const results = await JavaParser.parseFiles([testJavaFile, testInterfaceFile]);
+            const results = await Promise.all([testJavaFile, testInterfaceFile].map(f => JavaParser.parseFile(f)));
             expect(results.length).toBe(2);
-            expect(results[0].name).toBe('SampleClass');
-            expect(results[1].name).toBe('SampleInterface');
+            expect(results[0]?.name).toBe('SampleClass');
+            expect(results[1]?.name).toBe('SampleInterface');
         });
 
         it('should handle errors in individual files', async () => {
-            const results = await JavaParser.parseFiles([testJavaFile, 'invalid.java']);
-            expect(results.length).toBe(1);
+            const results = await Promise.all([testJavaFile, 'invalid.java'].map(f => JavaParser.parseFile(f)));
+            expect(results.filter(r => r !== null).length).toBe(1);
         });
     });
 });

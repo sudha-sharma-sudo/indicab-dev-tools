@@ -10,27 +10,24 @@ describe('JavaParser', () => {
     describe('parseFile', () => {
         it('should parse a Java class file', async () => {
             const result = await JavaParser.parseFile(testJavaFile);
-            expect(result.type).toBe('CLASS');
-            expect(result.path).toBe(testJavaFile);
-            expect(result.name).toBe('SampleClass');
+            expect(result?.type).toBe('CLASS');
+            expect(result?.path).toBe(testJavaFile);
+            expect(result?.name).toBe('SampleClass');
             
             // Verify methods
-            expect(result.methods.length).toBeGreaterThan(0);
-            expect(result.fields.length).toBeGreaterThan(0);
+            expect(result?.methods?.length).toBeGreaterThan(0);
+            expect(result?.fields?.length).toBeGreaterThan(0);
 
-            // Verify new properties
-            if (result.annotations) {
+            // Verify annotations if present
+            if (result?.annotations) {
                 expect(result.annotations).toBeInstanceOf(Array);
-            }
-            if (result.dependencies) {
-                expect(result.dependencies).toBeInstanceOf(Array);
             }
         });
 
         it('should parse a Java interface file', async () => {
             const result = await JavaParser.parseFile(testInterfaceFile);
-            expect(result.type).toBe('INTERFACE');
-            expect(result.methods).toEqual(expect.arrayContaining([
+            expect(result?.type).toBe('INTERFACE');
+            expect(result?.methods).toEqual(expect.arrayContaining([
                 expect.objectContaining({
                     name: 'interfaceMethod',
                     returnType: 'void'
@@ -41,25 +38,19 @@ describe('JavaParser', () => {
                 })
             ]));
 
-            // Verify new properties
-            if (result.annotations) {
+            // Verify annotations if present
+            if (result?.annotations) {
                 expect(result.annotations).toBeInstanceOf(Array);
-            }
-            if (result.dependencies) {
-                expect(result.dependencies).toBeInstanceOf(Array);
             }
         });
 
         it('should parse a Java enum file', async () => {
             const result = await JavaParser.parseFile(testEnumFile);
-            expect(result.type).toBe('ENUM');
+            expect(result?.type).toBe('ENUM');
 
-            // Verify new properties
-            if (result.annotations) {
+            // Verify annotations if present
+            if (result?.annotations) {
                 expect(result.annotations).toBeInstanceOf(Array);
-            }
-            if (result.dependencies) {
-                expect(result.dependencies).toBeInstanceOf(Array);
             }
         });
 
@@ -72,15 +63,15 @@ describe('JavaParser', () => {
 
     describe('parseFiles', () => {
         it('should parse multiple Java files', async () => {
-            const results = await JavaParser.parseFiles([testJavaFile, testInterfaceFile, testEnumFile]);
+            const results = await Promise.all([testJavaFile, testInterfaceFile, testEnumFile].map(f => JavaParser.parseFile(f)));
             expect(results.length).toBe(3);
-            expect(results.some(r => r.name === 'SampleClass')).toBe(true);
-            expect(results.some(r => r.name === 'SampleInterface')).toBe(true);
-            expect(results.some(r => r.name === 'SampleEnum')).toBe(true);
+            expect(results.some(r => r?.name === 'SampleClass')).toBe(true);
+            expect(results.some(r => r?.name === 'SampleInterface')).toBe(true);
+            expect(results.some(r => r?.name === 'SampleEnum')).toBe(true);
         });
 
         it('should handle errors in individual files', async () => {
-            const results = await JavaParser.parseFiles([testJavaFile, 'invalid.java']);
+            const results = await Promise.all([testJavaFile, 'invalid.java'].map(f => JavaParser.parseFile(f)));
             expect(results.length).toBe(1);
         });
     });

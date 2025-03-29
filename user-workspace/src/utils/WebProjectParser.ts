@@ -79,9 +79,18 @@ export class WebProjectParser {
 
     private static extractHtmlAttributes(content: string): Record<string, string> {
         const attrs: Record<string, string> = {};
+        // Match standard attributes
         const matches = content.matchAll(/\s+(\w+)=["']([^"']*)["']/g);
+        // Match boolean attributes
+        const boolMatches = content.matchAll(/\s+(\w+)(?=\s|>)/g);
+        
         for (const match of matches) {
             attrs[match[1]] = match[2];
+        }
+        for (const match of boolMatches) {
+            if (!attrs[match[1]]) {
+                attrs[match[1]] = 'true'; // Default value for boolean attributes
+            }
         }
         return attrs;
     }
@@ -160,9 +169,18 @@ export class WebProjectParser {
     }
 
     private static extractMdxStyles(content: string): string[] {
-        // Extract CSS classes from MDX
-        return Array.from(content.matchAll(/\.([\w-]+)\s*{/g))
-            .map(m => m[1]);
+        // Extract CSS classes from MDX including those in code blocks
+        const styleMatches = Array.from(content.matchAll(/\.([\w-]+)\s*{/g));
+        const codeBlockMatches = Array.from(content.matchAll(/```css\n([\s\S]+?)```/g));
+        
+        const styles = styleMatches.map(m => m[1]);
+        codeBlockMatches.forEach(match => {
+            const codeStyles = Array.from(match[1].matchAll(/\.([\w-]+)\s*{/g))
+                .map(m => m[1]);
+            styles.push(...codeStyles);
+        });
+        
+        return [...new Set(styles)]; // Remove duplicates
     }
 
     private static extractMdxFrontmatter(content: string): Record<string, any> {

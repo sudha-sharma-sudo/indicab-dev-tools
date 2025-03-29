@@ -74,6 +74,8 @@ export interface JavaClass {
     isInterface: boolean;
     superClass?: string;
     interfaces?: string[];
+    issues?: string[];
+    hasIssues?: boolean;
 }
 
 export interface JavaMethod {
