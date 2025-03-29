@@ -22,6 +22,35 @@
   ],
   "main": "./dist/extension.js",
   "contributes": {
+    "configuration": {
+      "title": "IndiCab Development Tools",
+      "properties": {
+        "indicab.logLevel": {
+          "type": "string",
+          "enum": ["error", "warn", "info", "debug"],
+          "default": "info",
+          "description": "Logging level for the extension"
+        },
+        "indicab.fileWatchPatterns": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": ["**/*.java", "**/*.xml", "**/*.gradle"],
+          "description": "File patterns to watch for changes"
+        },
+        "indicab.enableCache": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable parsing cache for better performance"
+        },
+        "indicab.cacheTTL": {
+          "type": "number",
+          "default": 300,
+          "description": "Cache time-to-live in seconds"
+        }
+      }
+    },
     "commands": [
       {
         "command": "indicab.start",
@@ -34,12 +63,21 @@
       {
         "command": "indicab.openFile",
         "title": "Open File in Editor"
+      },
+      {
+        "command": "indicab.clearCache",
+        "title": "Clear Parser Cache"
       }
     ],
     "menus": {
       "view/title": [
         {
           "command": "indicab.refresh",
+          "when": "view == indicabProjectExplorer",
+          "group": "navigation"
+        },
+        {
+          "command": "indicab.clearCache",
           "when": "view == indicabProjectExplorer",
           "group": "navigation"
         }
