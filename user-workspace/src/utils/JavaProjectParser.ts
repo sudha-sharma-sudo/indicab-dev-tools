@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
 import * as fs from 'fs';
+import { JavaParser } from './JavaParser';
 
 export interface ProjectStructureBase {
     rootPath: string;
@@ -19,6 +20,7 @@ export interface WebProjectStructure extends ProjectStructureBase {
     apis: WebComponent[];
     layouts: WebComponent[];
     routes: RouteDefinition[];
+    styles: WebComponent[];
 }
 
 export interface RouteDefinition {
@@ -36,12 +38,27 @@ export interface JavaPackage {
 
 export interface WebComponent {
     name: string;
-    type: 'PAGE' | 'COMPONENT' | 'LAYOUT' | 'API';
+    type: 'PAGE' | 'COMPONENT' | 'LAYOUT' | 'API' | 'STYLE';
     path: string;
     dependencies: string[];
     routes?: string[];
     apiEndpoints?: string[];
     props?: string[]; // Made optional since API components don't have props
+    mdxFeatures?: {
+        components: string[];
+        styles: string[];
+        frontmatter: Record<string, any>;
+    };
+    htmlFeatures?: {
+        attributes: Record<string, string>;
+        elements: string[];
+        stylesheets: string[];
+        scripts: string[];
+    };
+    cssVariables?: {
+        definitions: Record<string, string>;
+        usages: string[];
+    };
 }
 
 export interface JavaClass {
@@ -170,73 +187,7 @@ export class JavaProjectParser {
     }
 
     private static async parseJavaFile(filePath: string): Promise<JavaClass | null> {
-        try {
-            const content = fs.readFileSync(filePath, 'utf-8');
-            const className = path.basename(filePath, '.java');
-            
-            // Simple parsing (would be enhanced with proper Java parser in future)
-            const isInterface = content.includes('interface ');
-            const isEnum = content.includes('enum ');
-            const isTest = filePath.includes('test') || 
-                         content.includes('@Test') || 
-                         className.endsWith('Test');
-            
-            return {
-                name: className,
-                type: isInterface ? 'INTERFACE' : isEnum ? 'ENUM' : 'CLASS',
-                path: filePath,
-                methods: this.extractMethods(content),
-                fields: this.extractFields(content),
-                isTest,
-                isInterface
-            };
-        } catch (err) {
-            console.error(`Error parsing Java file ${filePath}:`, err);
-            return null;
-        }
-    }
-
-    private static extractMethods(content: string): JavaMethod[] {
-        // Simplified method extraction
-        const methodRegex = /(public|private|protected)\s+([\w<>]+)\s+(\w+)\s*\(([^)]*)\)/g;
-        const methods: JavaMethod[] = [];
-        let match;
-        
-        while ((match = methodRegex.exec(content)) !== null) {
-            const returnType = match[2];
-            const name = match[3];
-            const params = match[4].split(',').map(p => {
-                const parts = p.trim().split(/\s+/);
-                return {
-                    name: parts[parts.length - 1],
-                    type: parts.slice(0, -1).join(' ')
-                };
-            }).filter(p => p.name && p.type);
-
-            methods.push({
-                name,
-                returnType,
-                parameters: params
-            });
-        }
-
-        return methods;
-    }
-
-    private static extractFields(content: string): JavaField[] {
-        // Simplified field extraction
-        const fieldRegex = /(public|private|protected)\s+([\w<>]+)\s+(\w+)\s*[;=]/g;
-        const fields: JavaField[] = [];
-        let match;
-        
-        while ((match = fieldRegex.exec(content)) !== null) {
-            fields.push({
-                name: match[3],
-                type: match[2]
-            });
-        }
-
-        return fields;
+        return JavaParser.parseFile(filePath);
     }
 
     private static async findResourceFiles(dir: string): Promise<string[]> {

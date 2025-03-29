@@ -35,7 +35,17 @@ export const Colors = {
   interface: '#B5CEA8',
   test: '#F44747',
   config: '#DCDCAA',
-  resource: '#9CDCFE'
+  resource: '#9CDCFE',
+  
+  // Spring Components
+  springController: '#4299E1',
+  springService: '#48BB78',
+  springRepository: '#9F7AEA',
+  
+  // Graph Relationships
+  edgeDependency: '#569CD6',
+  edgeInheritance: '#4EC9B0',
+  edgeImplementation: '#C586C0'
 };
 
 export const Typography = {
@@ -76,7 +86,10 @@ export const Icons = {
     interface: 'interface',
     test: 'test',
     spring: 'spring',
-    resource: 'resource'
+    resource: 'resource',
+    controller: 'controller',
+    service: 'service',
+    repository: 'repository'
   }
 };
 

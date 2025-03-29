@@ -1,187 +1,238 @@
 import * as vscode from 'vscode';
-import * as fs from 'fs';
 import * as path from 'path';
+import * as fs from 'fs';
 import { Logger } from './Logger';
 
-export interface JavaMethod {
+type JavaASTNode = {
+    kind: string;
     name: string;
+    annotations?: { name: string }[];
+    members?: JavaASTNode[];
+    returnType?: string;
+    parameters?: { type: string; name: string }[];
+    type?: string;
+};
+
+export class JavaParser {
+    private static cache = new Map<string, JavaASTNode>();
+
+    public static parseFile(filePath: string): JavaClass | null {
+        try {
+            // Check cache first
+            if (this.cache.has(filePath)) {
+                return this.transformASTToClass(this.cache.get(filePath)!, filePath);
+            }
+
+            const content = fs.readFileSync(filePath, 'utf-8');
+            const ast = this.parseJavaContent(content);
+            this.cache.set(filePath, ast);
+            
+            return this.transformASTToClass(ast, filePath);
+        } catch (err) {
+            Logger.error(`Java parsing failed for ${filePath}`, err as Error);
+            return null;
+        }
+    }
+
+    private static parseJavaContent(content: string): JavaASTNode {
+        // Simplified AST parsing (would integrate with real Java parser)
+        const ast: JavaASTNode = {
+            kind: 'compilationUnit',
+            name: '',
+            members: []
+        };
+
+        // Detect class/interface/enum
+        const classMatch = content.match(/(class|interface|enum)\s+(\w+)/);
+        if (classMatch) {
+            ast.kind = classMatch[1];
+            ast.name = classMatch[2];
+        }
+
+        // Parse annotations
+        const annotationMatches = content.match(/@(\w+)/g) || [];
+        ast.annotations = [...new Set(annotationMatches)]
+            .map(a => ({ name: a.substring(1) }));
+
+        // Parse methods
+        const methodRegex = /(public|private|protected)\s+([\w<>]+)\s+(\w+)\s*\(([^)]*)\)/g;
+        let methodMatch;
+        ast.members = ast.members || [];
+        
+        while ((methodMatch = methodRegex.exec(content)) !== null) {
+            ast.members.push({
+                kind: 'method',
+                name: methodMatch[3],
+                returnType: methodMatch[2],
+                parameters: methodMatch[4].split(',')
+                    .filter(p => p.trim())
+                    .map(p => {
+                        const parts = p.trim().split(/\s+/);
+                        return {
+                            type: parts.slice(0, -1).join(' '),
+                            name: parts[parts.length - 1]
+                        };
+                    })
+            });
+        }
+
+        // Parse fields
+        const fieldRegex = /(public|private|protected)\s+([\w<>]+)\s+(\w+)\s*[;=]/g;
+        let fieldMatch;
+        
+        while ((fieldMatch = fieldRegex.exec(content)) !== null) {
+            ast.members.push({
+                kind: 'field',
+                name: fieldMatch[3],
+                type: fieldMatch[2]
+            });
+        }
+
+        return ast;
+    }
+
+    private static transformASTToClass(ast: JavaASTNode, filePath: string): JavaClass {
+        const className = path.basename(filePath, '.java');
+        const isTest = filePath.includes('test') || 
+                      ast.annotations?.some(a => a.name === 'Test');
+
+        return {
+            name: className,
+            type: ast.kind === 'interface' ? 'INTERFACE' : 
+                 ast.kind === 'enum' ? 'ENUM' : 'CLASS',
+            path: filePath,
+            methods: ast.members?.filter(m => m.kind === 'method').map(m => ({
+                name: m.name!,
+                returnType: m.returnType!,
+                parameters: m.parameters || []
+            })) || [],
+            fields: ast.members?.filter(m => m.kind === 'field').map(m => ({
+                name: m.name!,
+                type: m.type!
+            })) || [],
+            isTest: isTest || false,
+            isInterface: ast.kind === 'interface',
+            springComponent: this.detectSpringComponent(ast),
+            annotations: ast.annotations?.map(a => a.name),
+            endpoints: this.detectEndpoints(ast)
+        };
+    }
+
+    private static detectSpringComponent(ast: JavaASTNode): {
+        type?: 'CONTROLLER' | 'SERVICE' | 'REPOSITORY';
+        endpoints?: {path: string, method: string}[];
+        dependencies?: string[];
+    } {
+        const result: SpringComponentData = {
+            type: undefined,
+            endpoints: [],
+            dependencies: []
+        };
+
+        // Check class-level annotations
+        ast.annotations?.forEach(annotation => {
+            const annUpper = annotation.name.toUpperCase();
+            if (annUpper === 'CONTROLLER' || annUpper === 'RESTCONTROLLER') {
+                result.type = 'CONTROLLER';
+            } else if (annUpper === 'SERVICE' || annUpper === 'COMPONENT') {
+                result.type = 'SERVICE';
+            } else if (annUpper === 'REPOSITORY') {
+                result.type = 'REPOSITORY';
+            }
+        });
+
+        // Detect endpoints for controllers
+        if (result.type === 'CONTROLLER') {
+            ast.members?.filter(m => m.kind === 'method').forEach(method => {
+                method.annotations?.forEach(ann => {
+                    const annUpper = ann.name.toUpperCase();
+                    if (annUpper.endsWith('MAPPING')) {
+                        const methodType = annUpper.replace('MAPPING', '') || 'GET';
+                        const path = this.extractPathFromAnnotation(ann.name);
+                        result.endpoints?.push({
+                            method: methodType,
+                            path: path
+                        });
+                    }
+                });
+            });
+        }
+
+        // Detect autowired dependencies
+        ast.members?.filter(m => m.kind === 'field').forEach(field => {
+            if (field.annotations?.some(a => a.name === 'Autowired')) {
+                result.dependencies?.push(field.type!);
+            }
+        });
+
+        return result;
+    }
+
+    private static extractPathFromAnnotation(annotation: string): string {
+        // Extract path value from annotation
+        const pathMatch = annotation.match(/value\s*=\s*["'](.+?)["']/);
+        return pathMatch ? pathMatch[1] : '/';
+    }
+
+    private static detectEndpoints(ast: JavaASTNode): Endpoint[] {
+        return ast.members?.filter(m => 
+            m.kind === 'method' && 
+            m.annotations?.some(a => 
+                ['GetMapping', 'PostMapping', 'PutMapping', 'DeleteMapping', 'RequestMapping']
+                    .includes(a.name)
+            )
+        ).map(m => {
+            const mapping = m.annotations?.find(a => 
+                a.name.endsWith('Mapping')
+            )?.name || 'RequestMapping';
+            
+            return {
+                path: this.extractPathFromAnnotations(m.annotations || []),
+                method: mapping.replace('Mapping', '').toUpperCase() || 'GET',
+                returnType: m.returnType || 'void'
+            };
+        }) || [];
+    }
+
+    private static extractPathFromAnnotations(annotations: { name: string }[]): string {
+        // Simplified path extraction
+        const mapping = annotations.find(a => a.name.endsWith('Mapping'));
+        return mapping ? `/${mapping.name.replace('Mapping', '').toLowerCase()}` : '/';
+    }
+
+    public static clearCache() {
+        this.cache.clear();
+    }
+}
+
+export interface Endpoint {
+    path: string;
+    method: string;
     returnType: string;
-    parameters: Array<{name: string, type: string}>;
-    visibility: 'public'|'private'|'protected';
+}
+
+export interface SpringComponentData {
+    type?: 'CONTROLLER' | 'SERVICE' | 'REPOSITORY';
+    endpoints?: {path: string, method: string}[];
+    dependencies?: string[];
 }
 
 export interface JavaClass {
     name: string;
-    type: 'CLASS'|'INTERFACE'|'ENUM'|'RECORD';
+    type: 'CLASS' | 'INTERFACE' | 'ENUM';
     path: string;
-    methods: JavaMethod[];
-    fields: Array<{
+    methods: {
+        name: string;
+        returnType: string;
+        parameters: { type: string; name: string }[];
+    }[];
+    fields: {
         name: string;
         type: string;
-        visibility: 'public'|'private'|'protected';
-    }>;
-    imports: string[];
-    annotations: string[];
-    dependencies?: string[]; // Make optional for backward compatibility
-}
-
-export class JavaParser {
-    private static readonly CLASS_REGEX = /^\s*(?:public|private|protected)?\s*(?:class|interface|enum|record)\s+(\w+)\s*[<\w\s,>]*[\s\{]/gm;
-    private static readonly METHOD_REGEX = /(?:public|private|protected)\s+([\w<>,\s]+)\s+(\w+)\s*\(([^)]*)\)/g;
-    private static readonly FIELD_REGEX = /(?:public|private|protected)\s+([\w<>,\s]+)\s+(\w+)\s*[;=]/g;
-    private static readonly IMPORT_REGEX = /^import\s+(?:static\s+)?([\w\.]+)\s*;/gm;
-    private static readonly ANNOTATION_REGEX = /@(\w+)(?:\(([^)]*)\))?/g;
-    private static fileCache = new Map<string, {mtime: number, content: JavaClass}>();
-
-    static clearCache(): void {
-        this.fileCache.clear();
-        Logger.debug('JavaParser cache cleared');
-    }
-
-    static async parseFile(filePath: string): Promise<JavaClass> {
-        try {
-            const content = await fs.promises.readFile(filePath, 'utf-8');
-            const stats = await fs.promises.stat(filePath);
-            
-            const cached = this.fileCache.get(filePath);
-            if (cached && cached.mtime >= stats.mtimeMs) {
-                return cached.content;
-            }
-
-            const parsed = this.parseClassStructure(content, filePath);
-            this.fileCache.set(filePath, {
-                mtime: stats.mtimeMs,
-                content: parsed
-            });
-            return parsed;
-        } catch (err) {
-            Logger.error(`Failed to parse Java file ${filePath}`, err as Error);
-            throw err;
-        }
-    }
-
-    static async parseFiles(filePaths: string[]): Promise<JavaClass[]> {
-        return Promise.all(
-            filePaths.map(filePath => 
-                this.parseFile(filePath)
-                    .catch(err => {
-                        Logger.error(`Failed to parse file ${filePath}`, err as Error);
-                        return null;
-                    })
-            )
-        ).then(results => results.filter(Boolean) as JavaClass[]);
-    }
-
-    private static parseClassStructure(content: string, filePath: string): JavaClass {
-        this.CLASS_REGEX.lastIndex = 0;
-        const classNameMatch = this.CLASS_REGEX.exec(content);
-        if (!classNameMatch) {
-            throw new Error('No valid Java class found in file');
-        }
-
-        const isInterface = content.includes('interface ');
-        const isEnum = content.includes('enum ');
-        const isRecord = content.includes('record ');
-
-        const methods = isRecord ? this.extractRecordComponents(content) : this.extractMethods(content);
-        const fields = this.extractFields(content);
-        const imports = this.extractImports(content);
-
-        return {
-            name: classNameMatch[1],
-            type: isInterface ? 'INTERFACE' : isEnum ? 'ENUM' : isRecord ? 'RECORD' : 'CLASS',
-            path: filePath,
-            methods,
-            fields,
-            imports,
-            annotations: this.extractAnnotations(content)
-        };
-    }
-
-    private static extractRecordComponents(content: string): JavaMethod[] {
-        const components: JavaMethod[] = [];
-        const recordMatch = /record\s+\w+\s*\(([^)]*)\)/.exec(content);
-        if (!recordMatch) return components;
-
-        const componentRegex = /(\w+)\s+(\w+)\s*(?:,|\))/g;
-        let match;
-        while ((match = componentRegex.exec(recordMatch[1])) !== null) {
-            components.push({
-                name: match[2],
-                returnType: match[1],
-                parameters: [],
-                visibility: 'public'
-            });
-        }
-        return components.concat(this.extractMethods(content));
-    }
-
-    private static extractMethods(content: string): JavaMethod[] {
-        const methods: JavaMethod[] = [];
-        let match;
-        
-        const interfaceMethodRegex = /(?:^|\s)(\w+)\s+(\w+)\s*\(([^)]*)\)\s*(?:;|\{)/g;
-        const regex = content.includes('interface ') ? interfaceMethodRegex : this.METHOD_REGEX;
-        
-        while ((match = regex.exec(content)) !== null) {
-            methods.push({
-                name: match[2],
-                returnType: match[1],
-                parameters: this.parseParameters(match[3]),
-                visibility: content.includes('interface ') ? 'public' : 
-                          match[0].trim().split(' ')[0] as 'public'|'private'|'protected'
-            });
-        }
-        return methods;
-    }
-
-    private static extractFields(content: string) {
-        const fields = [];
-        let match;
-        this.FIELD_REGEX.lastIndex = 0;
-        
-        while ((match = this.FIELD_REGEX.exec(content)) !== null) {
-            fields.push({
-                name: match[2],
-                type: match[1],
-                visibility: match[0].trim().split(' ')[0] as 'public'|'private'|'protected'
-            });
-        }
-        return fields;
-    }
-
-    private static extractImports(content: string): string[] {
-        const imports = [];
-        let match;
-        this.IMPORT_REGEX.lastIndex = 0;
-        
-        while ((match = this.IMPORT_REGEX.exec(content)) !== null) {
-            imports.push(match[1]);
-        }
-        return imports;
-    }
-
-    private static extractAnnotations(content: string): string[] {
-        const annotations = [];
-        let match;
-        this.ANNOTATION_REGEX.lastIndex = 0;
-        
-        while ((match = this.ANNOTATION_REGEX.exec(content)) !== null) {
-            annotations.push(match[1]);
-        }
-        return annotations;
-    }
-
-    private static parseParameters(paramString: string) {
-        return paramString.split(',')
-            .map(p => p.trim())
-            .filter(p => p.length > 0)
-            .map(p => {
-                const parts = p.split(/\s+/);
-                return {
-                    name: parts[parts.length - 1],
-                    type: parts.slice(0, -1).join(' ')
-                };
-            });
-    }
+    }[];
+    isTest: boolean;
+    isInterface: boolean;
+    springComponent?: SpringComponentData;
+    annotations?: string[];
+    endpoints?: Endpoint[];
 }

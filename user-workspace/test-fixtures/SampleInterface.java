@@ -1,5 +1,7 @@
 public interface SampleInterface {
-    void interfaceMethod();
-    String getValue();
-    void setValue(String value);
+    void doSomething();
+    String getName();
+    default String getDescription() {
+        return "Default implementation";
+    }
 }

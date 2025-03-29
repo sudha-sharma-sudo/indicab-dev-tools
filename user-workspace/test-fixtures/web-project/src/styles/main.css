@@ -1,0 +1,6 @@
+@import "variables.css";
+
+.btn {
+    color: var(--primary-color);
+    padding: 1rem;
+}
