@@ -17,7 +17,8 @@
   ],
   "activationEvents": [
     "onCommand:indicab.start",
-    "onView:indicabProjectExplorer"
+    "onView:indicabProjectExplorer",
+    "onLanguage:java"
   ],
   "main": "./dist/extension.js",
   "contributes": {
@@ -25,8 +26,32 @@
       {
         "command": "indicab.start",
         "title": "Start IndiCab Tools"
+      },
+      {
+        "command": "indicab.refresh",
+        "title": "Refresh Project Explorer"
+      },
+      {
+        "command": "indicab.openFile",
+        "title": "Open File in Editor"
       }
     ],
+    "menus": {
+      "view/title": [
+        {
+          "command": "indicab.refresh",
+          "when": "view == indicabProjectExplorer",
+          "group": "navigation"
+        }
+      ],
+      "view/item/context": [
+        {
+          "command": "indicab.openFile",
+          "when": "view == indicabProjectExplorer && viewItem =~ /package|build-file/",
+          "group": "inline"
+        }
+      ]
+    },
     "views": {
       "explorer": [
         {
@@ -40,12 +65,18 @@
     "vscode:prepublish": "npm run compile",
     "compile": "tsc -p ./",
     "watch": "tsc -watch -p ./",
-    "lint": "eslint src --ext ts"
+    "lint": "eslint src --ext ts",
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "test:coverage": "jest --coverage"
   },
   "devDependencies": {
-    "@types/vscode": "^1.75.0",
+    "@types/jest": "^29.5.14",
     "@types/node": "16.x",
+    "@types/vscode": "^1.75.0",
     "eslint": "^8.34.0",
+    "jest": "^29.7.0",
+    "ts-jest": "^29.3.0",
     "typescript": "^4.9.5"
   }
 }
