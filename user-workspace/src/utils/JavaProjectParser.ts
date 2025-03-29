@@ -2,18 +2,46 @@ import * as vscode from 'vscode';
 import * as path from 'path';
 import * as fs from 'fs';
 
-export interface JavaProjectStructure {
+export interface ProjectStructureBase {
     rootPath: string;
     sourceRoots: string[];
+    resources: string[];
+}
+
+export interface JavaProjectStructure extends ProjectStructureBase {
     packages: JavaPackage[];
     buildFiles: BuildFile[];
-    resources: string[];
+}
+
+export interface WebProjectStructure extends ProjectStructureBase {
+    components: WebComponent[];
+    pages: WebComponent[];
+    apis: WebComponent[];
+    layouts: WebComponent[];
+    routes: RouteDefinition[];
+}
+
+export interface RouteDefinition {
+    path: string;
+    component: string;
+    layout?: string;
+    apiEndpoints?: string[];
 }
 
 export interface JavaPackage {
     name: string;
     path: string;
     classes: JavaClass[];
+}
+
+export interface WebComponent {
+    name: string;
+    type: 'PAGE' | 'COMPONENT' | 'LAYOUT' | 'API';
+    path: string;
+    dependencies: string[];
+    routes?: string[];
+    apiEndpoints?: string[];
+    props?: string[]; // Made optional since API components don't have props
 }
 
 export interface JavaClass {
@@ -27,6 +55,8 @@ export interface JavaClass {
     dependencies?: string[];
     isTest: boolean;
     isInterface: boolean;
+    superClass?: string;
+    interfaces?: string[];
 }
 
 export interface JavaMethod {

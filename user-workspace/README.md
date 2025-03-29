@@ -16,12 +16,58 @@ code --install-extension indicab-dev-tools-0.0.1.vsix
 ```
 
 ## Features
-- **Project Explorer**: Visualize Java project structure
-- **Smart Navigation**: Jump between related files
-- **Build Tools**: Gradle/Maven file support
-- **Code Analysis**: AST-based insights
 
-## Configuration
+### Architecture Dashboard
+![Architecture Dashboard Example](docs/screenshots/architecture-dashboard.png)  
+*Example visualization of a Spring Boot project structure*
+
+Interactive visualization of Java project architecture with:
+- Force-directed graph layout
+- Color-coded nodes (classes, interfaces, enums, tests)
+- Relationship edges (inheritance, dependencies, imports)
+- Click-to-navigate source files
+- Real-time refresh
+
+### Project Explorer 
+Visualize Java project structure with:
+- Package hierarchy
+- Class/method navigation  
+- Build file support
+- Resource management
+
+### Smart Navigation
+- Jump between related files
+- Follow dependencies
+- Quick access to tests
+
+### Build Tools
+- Gradle/Maven file support
+- Build configuration analysis
+- Dependency visualization
+
+### Code Analysis
+- AST-based parsing
+- Method/field insights
+- Type relationship mapping
+
+## Usage
+
+### Architecture Dashboard
+1. Open a Java project in VS Code  
+2. Run command: `Show Architecture Dashboard`  
+3. Interact with the visualization:  
+   - Click nodes to open source files  
+   - Hover for details  
+   - Use mouse wheel to zoom  
+   - Drag to pan  
+   - Right-click to refresh  
+
+### Project Explorer  
+1. Open the IndiCab Project view  
+2. Browse packages and classes  
+3. Click items to open files  
+
+## Configuration  
 ```json
 "indicab.logLevel": "info",
 "indicab.fileWatchPatterns": ["**/*.java", "**/*.xml"],

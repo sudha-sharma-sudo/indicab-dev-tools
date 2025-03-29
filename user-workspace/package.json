@@ -16,8 +16,8 @@
     "Other"
   ],
   "activationEvents": [
-    "onCommand:indicab.start",
-    "onView:indicabProjectExplorer",
+    
+    
     "onLanguage:java"
   ],
   "main": "./dist/extension.js",
@@ -67,6 +67,10 @@
       {
         "command": "indicab.clearCache",
         "title": "Clear Parser Cache"
+      },
+      {
+        "command": "indicab.showArchitectureDashboard", 
+        "title": "Show Architecture Dashboard"
       }
     ],
     "menus": {

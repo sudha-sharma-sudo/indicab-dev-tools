@@ -2,6 +2,8 @@ import * as vscode from 'vscode';
 import { ProjectExplorer } from './views/ProjectExplorer';
 import { Logger } from './utils/Logger';
 import { JavaParser } from './utils/JavaParser';
+import { JavaProjectParser } from './utils/JavaProjectParser';
+import { ArchitectureDashboard } from './views/ArchitectureDashboard';
 
 export function activate(context: vscode.ExtensionContext) {
     // Initialize logger
@@ -40,7 +42,28 @@ export function activate(context: vscode.ExtensionContext) {
                 JavaParser.clearCache();
                 vscode.window.showInformationMessage('Parser cache cleared');
                 projectExplorer.refresh();
-            })
+            }),
+            
+            // Architecture Dashboard command
+            vscode.commands.registerCommand('indicab.showArchitectureDashboard', async () => {
+                try {
+                    Logger.info('Opening Architecture Dashboard');
+                    const workspaceFolders = vscode.workspace.workspaceFolders;
+                    if (!workspaceFolders || workspaceFolders.length === 0) {
+                        vscode.window.showWarningMessage('No workspace folder open');
+                        return;
+                    }
+
+                    const rootPath = workspaceFolders[0].uri.fsPath;
+                    const projectStructure = await JavaProjectParser.parseProject(rootPath);
+                    new ArchitectureDashboard(context, projectStructure);
+                } catch (error) {
+                    Logger.error('Failed to open Architecture Dashboard', error as Error);
+                    vscode.window.showErrorMessage(
+                        `Failed to open Architecture Dashboard: ${error instanceof Error ? error.message : String(error)}`
+                    );
+                }
+            }),
         );
 
         // Watch for workspace changes with debounce
